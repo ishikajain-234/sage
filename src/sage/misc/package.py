@@ -52,8 +52,7 @@ import sage.env
 
 DEFAULT_PYPI = 'https://pypi.org/pypi'
 
-
-def pkgname_split(name):
+def pkgname_split(name: str) -> list[str]:
     r"""
     Split a pkgname into a list of strings, 'name, version'.
 
@@ -68,7 +67,8 @@ def pkgname_split(name):
     return (name.split('-', 1) + [''])[:2]
 
 
-def pip_remote_version(pkg, pypi_url=DEFAULT_PYPI, ignore_URLError=False):
+def pip_remote_version(pkg: str, pypi_url: str = DEFAULT_PYPI,
+                       ignore_URLError: bool = False) -> Optional[str]:
     r"""
     Return the version of this pip package available on PyPI.
 
@@ -124,7 +124,7 @@ def pip_remote_version(pkg, pypi_url=DEFAULT_PYPI, ignore_URLError=False):
     return max(stable_releases)
 
 
-def spkg_type(name):
+def spkg_type(name: str) -> Optional[str]:
     r"""
     Return the type of the Sage package with the given name.
 
@@ -160,7 +160,7 @@ def spkg_type(name):
     return spkg_type
 
 
-def pip_installed_packages(normalization=None):
+def pip_installed_packages(normalization: Optional[str] = None) -> dict[str, str]:
     r"""
     Return a dictionary `name->version` of installed pip packages.
 
