@@ -11,13 +11,13 @@ Free modules
 # ****************************************************************************
 
 import sage.data_structures.blas_dict as blas
+from sage.categories.cartesian_product import cartesian_product
 from sage.categories.category import Category
 from sage.categories.graded_algebras_with_basis import GradedAlgebrasWithBasis
 from sage.categories.modules_with_basis import ModulesWithBasis
 from sage.categories.morphism import SetMorphism
 from sage.categories.sets_cat import Sets
 from sage.categories.tensor import tensor
-from sage.combinat.cartesian_product import CartesianProduct_iters
 from sage.misc.cachefunc import cached_method
 from sage.misc.latex import latex
 from sage.misc.lazy_attribute import lazy_attribute
@@ -1297,8 +1297,7 @@ class CombinatorialFreeModule_Tensor(CombinatorialFreeModule):
     The basis of T is indexed by tuples of basis indices of F and G::
 
         sage: T.basis().keys()
-        Image of Cartesian product of {1, 2}, {3, 4}
-              by The map <class 'tuple'> from Cartesian product of {1, 2}, {3, 4}
+        The Cartesian product of ({1, 2}, {3, 4})
         sage: T.basis().keys().list()
         [(1, 3), (1, 4), (2, 3), (2, 4)]
 
@@ -1385,10 +1384,18 @@ class CombinatorialFreeModule_Tensor(CombinatorialFreeModule):
 
             sage: F = CombinatorialFreeModule(ZZ, [1,2]); F
             F
+
+        Check that :issue:`24900` is fixed::
+
+            sage: F = CombinatorialFreeModule(ZZ, [1, 2])
+            sage: G = CombinatorialFreeModule(ZZ, [3, 4])
+            sage: T = tensor([F, G])
+            sage: T.basis()[(1, 3)].coefficient((1, 3))
+            1
         """
         self._sets = modules
-        indices = CartesianProduct_iters(*[module.basis().keys()
-                                           for module in modules]).map(tuple, is_injective=True)
+        indices = cartesian_product([module.basis().keys()
+                                     for module in modules])
         CombinatorialFreeModule.__init__(self, modules[0].base_ring(), indices, **options)
         # the following is not the best option, but it's better than nothing.
         if 'tensor_symbol' in options:
@@ -1662,9 +1669,9 @@ class CombinatorialFreeModule_Tensor(CombinatorialFreeModule):
             sage: S.has_coerce_map_from(S2)
             False
             sage: S.an_element()
-            3*B[0] # B[-1] + 2*B[0] # B[0] + 2*B[0] # B[1]
+            B[0] # B[0] + 3*B[0] # B[1] + 2*B[1] # B[0] + B[1] # B[1]
             sage: S2(S.an_element())
-            2*B[0] # B[0] + 5*B[0] # B[1]
+            B[0] # B[0] + 3*B[0] # B[1] + 2*B[1] # B[0] + B[1] # B[1]
 
         ::
 
@@ -1677,7 +1684,7 @@ class CombinatorialFreeModule_Tensor(CombinatorialFreeModule):
             sage: T(tensor((p,p)))
             Traceback (most recent call last):
             ...
-            NotImplementedError
+            TypeError: do not know how to make x (= ...) an element of self (...)
             sage: T = tensor((D,D))
             sage: p = C.an_element()
             sage: T(tensor((p,p)))
