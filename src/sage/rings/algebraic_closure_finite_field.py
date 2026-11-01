@@ -53,11 +53,13 @@ AUTHORS:
 
 - Vincent Delecroix (November 2013): additional methods
 """
+from sage.categories.map import Map
 from sage.misc.abstract_method import abstract_method
 from sage.misc.fast_methods import WithEqualityById
 from sage.rings.finite_rings.finite_field_base import FiniteField
 from sage.rings.ring import Field
 from sage.sets.family import AbstractFamily
+from sage.structure.coerce_maps import DefaultConvertMap_unique
 from sage.structure.element import Element, FieldElement
 from sage.structure.richcmp import richcmp
 
@@ -534,6 +536,87 @@ class AlgebraicClosureFiniteFieldElement(FieldElement):
         return (F, x, phi)
 
 
+class AlgebraicClosureRetraction(Map):
+    r"""
+    Retraction map from an algebraic closure of a finite field to one of its subfields.
+
+    EXAMPLES::
+
+        sage: Fq = GF(3)
+        sage: Fqbar = Fq.algebraic_closure()
+        sage: Fq(Fqbar(0))
+        0
+        sage: Fq(Fqbar(2))
+        2
+        sage: Fq2, _ = Fqbar.subfield(2)
+        sage: Fq2(Fqbar.gen(2))
+        z2
+        sage: Fq(Fqbar.gen(2))
+        Traceback (most recent call last):
+        ...
+        ValueError: z2 is not in Finite Field of size 3
+    """
+    def _call_(self, x):
+        """
+        Retract ``x`` from the algebraic closure to the subfield.
+
+        TESTS::
+
+            sage: Fq = GF(3)
+            sage: Fqbar = Fq.algebraic_closure()
+            sage: Fq(Fqbar(1))
+            1
+        """
+        F, val, _ = x.as_finite_field_element(minimal=True)
+        m = F.degree()
+        d = self.codomain().degree()
+        if not m.divides(d):
+            raise ValueError(f"{x} is not in {self.codomain()}")
+        if m == 1:
+            return self.codomain()(val)
+        if m == d:
+            return self.codomain()(val)
+        return self.codomain()(self.domain().inclusion(m, d)(val))
+
+
+class AlgebraicClosureCoerceMap(DefaultConvertMap_unique):
+    r"""
+    Coercion map from a subfield into an algebraic closure of a finite field,
+    supporting section / retraction back to the subfield.
+
+    EXAMPLES::
+
+        sage: Fq = GF(3)
+        sage: Fqbar = Fq.algebraic_closure()
+        sage: mor = Fqbar.coerce_map_from(Fq)
+        sage: mor
+        Coercion map:
+          From: Finite Field of size 3
+          To:   Algebraic closure of Finite Field of size 3
+        sage: sec = mor.section(); sec
+        Generic map:
+          From: Algebraic closure of Finite Field of size 3
+          To:   Finite Field of size 3
+        sage: sec(Fqbar(2))
+        2
+    """
+    def section(self):
+        """
+        Return the retraction map from the algebraic closure back to the subfield.
+
+        EXAMPLES::
+
+            sage: Fq = GF(5)
+            sage: Fqbar = Fq.algebraic_closure()
+            sage: mor = Fqbar.coerce_map_from(Fq)
+            sage: mor.section()
+            Generic map:
+              From: Algebraic closure of Finite Field of size 5
+              To:   Finite Field of size 5
+        """
+        return AlgebraicClosureRetraction(self.codomain(), self.domain())
+
+
 class AlgebraicClosureFiniteField_generic(Field):
     """
     Algebraic closure of a finite field.
@@ -635,19 +718,41 @@ class AlgebraicClosureFiniteField_generic(Field):
 
     def _coerce_map_from_(self, other):
         """
-        Return ``True`` if elements of ``other`` can be coerced into
-        ``self``.
+        Return a coercion map or ``True`` if elements of ``other`` can
+        be coerced into ``self``.
 
         EXAMPLES::
 
             sage: F = GF(7).algebraic_closure()
             sage: F.has_coerce_map_from(Integers())
             True
+            sage: F.coerce_map_from(GF(7))
+            Coercion map:
+              From: Finite Field of size 7
+              To:   Algebraic closure of Finite Field of size 7
+            sage: GF(7)(F(3))
+            3
+
+        Check that :issue:`42899` is resolved::
+
+            sage: Fq = GF(3)
+            sage: Fqbar = Fq.algebraic_closure()
+            sage: Fq(Fqbar(0))
+            0
+            sage: Fq(Fqbar(1))
+            1
+            sage: Fq(Fqbar(2))
+            2
+            sage: Fq9, _ = Fqbar.subfield(2)
+            sage: Fq9(Fqbar(0))
+            0
+            sage: Fq9(Fqbar.gen(2))
+            z2
         """
         if other is self:
             return True
         if isinstance(other, FiniteField) and self._subfield(other.degree()) is other:
-            return True
+            return AlgebraicClosureCoerceMap(other, self)
         if self._subfield(1).has_coerce_map_from(other):
             return True
 
